@@ -29,11 +29,23 @@ Early development.
 
 - **Phase 0** — repo, tooling, parser stack. ✅
 - **Phase 1** — lossless core round-trip for standard Markdown (headings, paragraphs, lists, marks, links, images, blockquote, code, thematic breaks). ✅
-- **Phase 2** — JSX verbatim atoms. _(not started)_
-- **Phase 3** — rich container components.
+- **Phase 2** — JSX verbatim atoms. ✅
+- **Phase 3** — rich container components. _(not started)_
 - **Phase 4** — ship.
 
-In Phase 1, JSX nodes (`mdxJsxFlowElement`, `mdxJsxTextElement`, expressions) are carried through unchanged as a passthrough so the pipeline does not crash on real files. Proper JSX modeling lands in Phase 2.
+## JSX verbatim atoms
+
+MDX's defining feature — JSX components and embedded expressions — cannot be round-tripped by re-serializing a parsed subtree: `mdast-util-mdx`'s serializer re-indents JSX flow-element children and collapses blank lines inside them.
+
+So `tiptap-mdx` never re-serializes JSX. `remark-mdx` attaches precise character offsets to every node; for each MDX construct the pipeline slices the **exact original source substring** and stores it verbatim on a ProseMirror atom node, emitting it unchanged on serialize. This covers every MDX node type — block JSX (`mdxJsxFlowElement`), inline JSX (`mdxJsxTextElement`), expressions (`mdxFlowExpression`, `mdxTextExpression`), and ESM (`mdxjsEsm`).
+
+The walk does **not** recurse into a JSX element's children — a `<Section>` containing markdown and nested JSX is captured whole, as one opaque atom. Each atom renders a minimal labeled placeholder (the component or expression name); rich, editable container rendering lands in Phase 3.
+
+This is also the universal safety net: any JSX, recognized or not, becomes a verbatim atom and survives a round-trip untouched. The editor can never corrupt content it captured verbatim.
+
+## M2 — JSX round-trips byte-exact
+
+Every file in the validation corpus round-trips byte-equal with **JSX intact** (frontmatter stripped — it is not part of the MDX body and is modeled separately). The corpus includes container components (`<Section>`, `<Outcomes>`, `<NowReading>`), attribute-heavy components (`<Figure>`), and a JavaScript-expression attribute (`<ImageGrid items={[...]}>`) — all preserved exactly. See `test/portfolio.test.ts` and `test/jsx.test.ts`.
 
 ## M1 — round-trip identity is achievable
 

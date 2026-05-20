@@ -3,14 +3,16 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { roundTrip } from "../src/index.js";
-import { toCanonicalMarkdown } from "./strip.js";
+import { stripFrontmatter } from "./strip.js";
 
 /**
- * Phase 1 — real-world coverage against the Portfolio `.mdx` corpus.
+ * Phase 2 — real-world coverage against the Portfolio `.mdx` corpus.
  *
- * Each file is reduced to canonical standard Markdown (frontmatter + JSX
- * stripped — see strip.ts) and then asserted to round-trip byte-equal. This is
- * the empirical half of the M1 go/no-go gate.
+ * Milestone M2: every Portfolio `.mdx` file must round-trip byte-equal with
+ * JSX *intact* — frontmatter is still stripped (not modeled), but JSX is no
+ * longer removed. The pipeline captures each JSX / expression / ESM construct
+ * as a verbatim atom and re-emits its exact source, so the body survives a
+ * round-trip unchanged. This is the empirical half of the M2 gate.
  *
  * The Portfolio repo is read-only and external; if it is not present (e.g. CI
  * without the sibling checkout) the suite is skipped rather than failing.
@@ -47,22 +49,22 @@ function collectFixtures(): Fixture[] {
 const fixtures = collectFixtures();
 
 describe.skipIf(fixtures.length === 0)(
-  "Phase 1 — Portfolio .mdx round-trip (JSX + frontmatter stripped)",
+  "Phase 2 — Portfolio .mdx round-trip (JSX intact, frontmatter stripped)",
   () => {
     for (const fixture of fixtures) {
       it(fixture.label, () => {
         const raw = readFileSync(fixture.path, "utf8");
-        const canonical = toCanonicalMarkdown(raw);
-        // The standard-Markdown body of every real file must round-trip
-        // byte-equal through the full pipeline.
-        expect(roundTrip(canonical)).toBe(canonical);
+        const body = stripFrontmatter(raw);
+        // M2: the full body — standard Markdown AND every JSX construct —
+        // must round-trip byte-equal through the pipeline.
+        expect(roundTrip(body)).toBe(body);
       });
     }
   },
 );
 
 if (fixtures.length === 0) {
-  describe("Phase 1 — Portfolio corpus", () => {
+  describe("Phase 2 — Portfolio corpus", () => {
     it.skip("skipped: ~/Portfolio not found", () => {});
   });
 }
