@@ -2,8 +2,11 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
-import { toMarkdown, type Options as ToMarkdownOptions } from "mdast-util-to-markdown";
-import { mdxToMarkdown } from "mdast-util-mdx";
+import {
+  toMarkdown,
+  type Options as ToMarkdownOptions,
+  type Handlers,
+} from "mdast-util-to-markdown";
 import { gfmToMarkdown } from "mdast-util-gfm";
 import type { Root } from "mdast";
 
@@ -19,6 +22,19 @@ import type { Root } from "mdast";
  */
 
 /**
+ * Custom mdast node types emitted by the ProseMirror -> mdast converter for
+ * JSX verbatim atoms. They are *not* `mdast-util-mdx` node types: they carry a
+ * pre-sliced verbatim source string and are written back unchanged, bypassing
+ * `mdast-util-mdx`'s JSX serializer entirely (which re-indents and reflows
+ * JSX flow children). See `verbatim.ts` for why this matters.
+ */
+interface VerbatimMdastNode {
+  type: "mdxVerbatimBlock" | "mdxVerbatimInline";
+  /** Exact original MDX source — emitted byte-for-byte. */
+  value: string;
+}
+
+/**
  * Serializer options tuned for round-trip identity against the Portfolio
  * `.mdx` corpus. Each choice matches an observed convention in the source:
  *
@@ -32,8 +48,11 @@ import type { Root } from "mdast";
  *  - `resourceLink: false`— links serialize as `[text](url)`, not autolinks.
  *  - `tightDefinitions`   — no blank line between adjacent definitions.
  *
- * The `mdxToMarkdown` and `gfmToMarkdown` extensions teach the serializer how
- * to write JSX and GFM nodes respectively.
+ * The `gfmToMarkdown` extension teaches the serializer the GFM nodes
+ * (strikethrough). `mdxToMarkdown` is intentionally *not* included: every MDX
+ * JSX / expression / ESM node is captured as a verbatim atom and re-emitted
+ * via the `handlers` below, so the JSX serializer is never invoked and can
+ * never reflow content. The `handlers` simply return the stored source.
  */
 export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
   bullet: "-",
@@ -46,7 +65,16 @@ export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
   listItemIndent: "one",
   resourceLink: false,
   tightDefinitions: true,
-  extensions: [mdxToMarkdown(), gfmToMarkdown()],
+  extensions: [gfmToMarkdown()],
+  // `Handlers` is keyed by the known mdast node types; the verbatim node types
+  // are custom, so the record is built untyped and cast. Each handler simply
+  // returns the stored verbatim source — no escaping, no reflow.
+  handlers: {
+    mdxVerbatimBlock: (node: unknown): string =>
+      (node as VerbatimMdastNode).value,
+    mdxVerbatimInline: (node: unknown): string =>
+      (node as VerbatimMdastNode).value,
+  } as unknown as Partial<Handlers>,
 };
 
 const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMdx);

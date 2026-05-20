@@ -24,8 +24,25 @@ import type {
  *
  * is byte-equal to a canonical serialization of `x`.
  *
- * Passthrough nodes simply hand back the mdast subtree they were created with.
+ * Verbatim atom nodes emit a custom mdast node (`mdxVerbatimBlock` /
+ * `mdxVerbatimInline`) carrying the exact original source string. A custom
+ * serializer handler (see SERIALIZE_OPTIONS in markdown.ts) writes that string
+ * back unchanged — the parsed JSX subtree is never re-serialized.
  */
+
+/**
+ * Custom mdast nodes for JSX verbatim atoms. These are not real mdast /
+ * `mdast-util-mdx` types — they exist only to carry a pre-sliced source string
+ * to the matching serializer handler.
+ */
+interface VerbatimBlockNode {
+  type: "mdxVerbatimBlock";
+  value: string;
+}
+interface VerbatimInlineNode {
+  type: "mdxVerbatimInline";
+  value: string;
+}
 
 /**
  * ProseMirror represents inline marks as a *set per text node*; mdast nests
@@ -45,7 +62,7 @@ function tieRank(name: string): number {
 }
 
 interface InlineLeaf {
-  /** The mdast leaf node (text / inlineCode / image / break / passthrough). */
+  /** The mdast leaf node (text / inlineCode / image / break / verbatim). */
   node: PhrasingContent;
   /** Marks still to be applied around this leaf (unordered set). */
   marks: Mark[];
@@ -75,8 +92,15 @@ function leafFromPMInline(node: PMNode): PhrasingContent {
       const br: Break = { type: "break" };
       return br;
     }
-    case "mdxInlinePassthrough":
-      return node.attrs.mdast as PhrasingContent;
+    case "mdxInlineAtom": {
+      const verbatim: VerbatimInlineNode = {
+        type: "mdxVerbatimInline",
+        value: String(node.attrs.value ?? ""),
+      };
+      // The custom node is not in mdast's PhrasingContent union; it is only
+      // ever consumed by the matching serializer handler.
+      return verbatim as unknown as PhrasingContent;
+    }
     default:
       throw new Error(
         `tiptap-mdx: unexpected inline node "${node.type.name}"`,
@@ -234,8 +258,14 @@ function convertBlock(node: PMNode): RootContent[] {
       return [hr];
     }
 
-    case "mdxBlockPassthrough":
-      return [node.attrs.mdast as RootContent];
+    case "mdxBlockAtom": {
+      const verbatim: VerbatimBlockNode = {
+        type: "mdxVerbatimBlock",
+        value: String(node.attrs.value ?? ""),
+      };
+      // Not a real mdast RootContent type; only the serializer handler reads it.
+      return [verbatim as unknown as RootContent];
+    }
 
     default:
       throw new Error(

@@ -3,7 +3,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import type { Schema } from "@tiptap/pm/model";
-import { MdxBlockPassthrough, MdxInlinePassthrough } from "./passthrough.js";
+import { MdxBlockAtom, MdxInlineAtom } from "./verbatim.js";
 
 /**
  * The ProseMirror schema for tiptap-mdx.
@@ -23,7 +23,8 @@ import { MdxBlockPassthrough, MdxInlinePassthrough } from "./passthrough.js";
  *   - hardBreak
  *   - marks: bold, italic, strike, code, link
  *
- * Custom MDX/JSX nodes are added in Phase 2.
+ * Phase 2 adds the MDX verbatim atom nodes (see verbatim.ts): every JSX /
+ * expression / ESM construct becomes an opaque atom carrying its exact source.
  */
 export const schema: Schema = getSchema([
   StarterKit.configure({
@@ -44,9 +45,9 @@ export const schema: Schema = getSchema([
       };
     },
   }),
-  // Phase 1 JSX safety net (see passthrough.ts).
-  MdxBlockPassthrough,
-  MdxInlinePassthrough,
+  // Phase 2 MDX verbatim atoms (see verbatim.ts).
+  MdxBlockAtom,
+  MdxInlineAtom,
 ]);
 
 // Sanity: surface a clear error early if an expected node/mark is missing,
@@ -64,6 +65,8 @@ const REQUIRED_NODES = [
   "horizontalRule",
   "hardBreak",
   "image",
+  "mdxBlockAtom",
+  "mdxInlineAtom",
 ];
 const REQUIRED_MARKS = ["bold", "italic", "strike", "code", "link"];
 

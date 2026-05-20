@@ -13,10 +13,15 @@ export const VERSION = "0.0.0";
  * Markdown input. See README.md.
  */
 
-/** Parse an MDX string into a ProseMirror document node. */
+/**
+ * Parse an MDX string into a ProseMirror document node.
+ *
+ * The original `mdx` string is threaded into the converter so JSX nodes can be
+ * captured verbatim by slicing their exact source spans.
+ */
 export function mdxToDoc(mdx: string): PMNode {
   const tree = parseMdast(mdx);
-  return mdastToProseMirror(tree);
+  return mdastToProseMirror(tree, mdx);
 }
 
 /** Serialize a ProseMirror document node back into an MDX string. */
@@ -39,4 +44,12 @@ export { parseMdast, serializeMdast, SERIALIZE_OPTIONS } from "./markdown.js";
 export { mdastToProseMirror } from "./mdast-to-pm.js";
 export { proseMirrorToMdast } from "./pm-to-mdast.js";
 export { schema } from "./schema.js";
+export {
+  MdxBlockAtom,
+  MdxInlineAtom,
+  MDX_BLOCK_TYPES,
+  MDX_INLINE_TYPES,
+  mdxNodeLabel,
+} from "./verbatim.js";
+export type { VerbatimAttrs } from "./verbatim.js";
 export type { Root, PMNode };
