@@ -2,7 +2,7 @@
 
 A lossless bridge between **MDX** (Markdown + JSX components) and **Tiptap** / ProseMirror.
 
-[![CI](https://github.com/goodsventures/tiptap-mdx/actions/workflows/ci.yml/badge.svg)](https://github.com/goodsventures/tiptap-mdx/actions/workflows/ci.yml)
+[![CI](https://github.com/brentvanw/tiptap-mdx/actions/workflows/ci.yml/badge.svg)](https://github.com/brentvanw/tiptap-mdx/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 ## Why this exists
@@ -32,7 +32,7 @@ roundTrip(input) === input; // holds for every supported construct
 npm install tiptap-mdx
 ```
 
-`tiptap-mdx` is ESM-only and ships `.d.ts` types. Its peers — `@tiptap/core`, `@tiptap/pm`, `@tiptap/starter-kit`, and the `remark` / `unified` stack — are declared as dependencies and installed automatically. To mount the editor in a React app you additionally need `@tiptap/react`.
+`tiptap-mdx` is ESM-only and ships `.d.ts` types. The `remark` / `unified` parsing stack is bundled as a regular dependency. The Tiptap packages it builds on — `@tiptap/core`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-image`, `@tiptap/extension-link` — are **peer dependencies**: install them in your app so the editor and `tiptap-mdx` share a single Tiptap instance (two copies of `@tiptap/core` break extension interop). To mount the editor in React you also need `@tiptap/react`.
 
 ## Usage
 

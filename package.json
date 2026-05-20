@@ -49,11 +49,6 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@tiptap/core": "^2.11.5",
-    "@tiptap/extension-image": "^2.27.2",
-    "@tiptap/extension-link": "^2.27.2",
-    "@tiptap/pm": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
     "mdast-util-gfm": "^3.1.0",
     "mdast-util-mdx": "^3.0.0",
     "mdast-util-to-markdown": "^2.1.2",
@@ -63,7 +58,19 @@
     "remark-stringify": "^11.0.0",
     "unified": "^11.0.5"
   },
+  "peerDependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-image": "^2.27.2",
+    "@tiptap/extension-link": "^2.27.2",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5"
+  },
   "devDependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-image": "^2.27.2",
+    "@tiptap/extension-link": "^2.27.2",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
     "@types/mdast": "^4.0.4",
     "@types/node": "^22.13.5",
     "tsup": "^8.5.1",
