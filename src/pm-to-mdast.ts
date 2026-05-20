@@ -28,6 +28,13 @@ import type {
  * `mdxVerbatimInline`) carrying the exact original source string. A custom
  * serializer handler (see SERIALIZE_OPTIONS in markdown.ts) writes that string
  * back unchanged — the parsed JSX subtree is never re-serialized.
+ *
+ * Phase 3 adds the editable container node. An `mdxContainer` PM node emits a
+ * custom `mdxContainerBlock` mdast node carrying the verbatim open/close tag
+ * slices plus *real* mdast children. Its serializer handler writes
+ * `openTag + serialized-children + closeTag`: the children round-trip as
+ * ordinary Markdown while the tags (attributes, blank-line padding) are
+ * re-emitted byte-for-byte.
  */
 
 /**
@@ -42,6 +49,21 @@ interface VerbatimBlockNode {
 interface VerbatimInlineNode {
   type: "mdxVerbatimInline";
   value: string;
+}
+
+/**
+ * Custom mdast node for an editable container component. Unlike the verbatim
+ * nodes it has *real* mdast `children`; only the open/close tags are carried
+ * verbatim. The matching serializer handler (see markdown.ts) serializes the
+ * children as Markdown and wraps them in the two tag slices.
+ */
+interface ContainerMdastNode {
+  type: "mdxContainerBlock";
+  openTag: string;
+  closeTag: string;
+  /** Verbatim inter-child separators; see container.ts splitContainerTags. */
+  gaps: string[];
+  children: RootContent[];
 }
 
 /**
@@ -265,6 +287,22 @@ function convertBlock(node: PMNode): RootContent[] {
       };
       // Not a real mdast RootContent type; only the serializer handler reads it.
       return [verbatim as unknown as RootContent];
+    }
+
+    case "mdxContainer": {
+      // Children are real, editable block content — convert them recursively
+      // so an edit to a child re-serializes as ordinary Markdown. The open and
+      // close tags are re-emitted verbatim from the stored slices.
+      const rawGaps = node.attrs.gaps;
+      const gaps = Array.isArray(rawGaps) ? rawGaps.map(String) : [];
+      const container: ContainerMdastNode = {
+        type: "mdxContainerBlock",
+        openTag: String(node.attrs.openTag ?? ""),
+        closeTag: String(node.attrs.closeTag ?? ""),
+        gaps,
+        children: convertBlocks(node),
+      };
+      return [container as unknown as RootContent];
     }
 
     default:

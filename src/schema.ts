@@ -4,6 +4,7 @@ import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import type { Schema } from "@tiptap/pm/model";
 import { MdxBlockAtom, MdxInlineAtom } from "./verbatim.js";
+import { MdxContainer } from "./container.js";
 
 /**
  * The ProseMirror schema for tiptap-mdx.
@@ -25,6 +26,10 @@ import { MdxBlockAtom, MdxInlineAtom } from "./verbatim.js";
  *
  * Phase 2 adds the MDX verbatim atom nodes (see verbatim.ts): every JSX /
  * expression / ESM construct becomes an opaque atom carrying its exact source.
+ *
+ * Phase 3 adds the editable container node (see container.ts): a registered
+ * container component becomes a styled wrapper with real, editable block
+ * children, while its open/close tags are preserved verbatim.
  */
 export const schema: Schema = getSchema([
   StarterKit.configure({
@@ -48,6 +53,8 @@ export const schema: Schema = getSchema([
   // Phase 2 MDX verbatim atoms (see verbatim.ts).
   MdxBlockAtom,
   MdxInlineAtom,
+  // Phase 3 editable container node (see container.ts).
+  MdxContainer,
 ]);
 
 // Sanity: surface a clear error early if an expected node/mark is missing,
@@ -67,6 +74,7 @@ const REQUIRED_NODES = [
   "image",
   "mdxBlockAtom",
   "mdxInlineAtom",
+  "mdxContainer",
 ];
 const REQUIRED_MARKS = ["bold", "italic", "strike", "code", "link"];
 

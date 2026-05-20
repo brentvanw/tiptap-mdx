@@ -35,6 +35,20 @@ interface VerbatimMdastNode {
 }
 
 /**
+ * Custom mdast node for an editable container component (Phase 3). The open and
+ * close tags are carried verbatim; the children are real mdast nodes and are
+ * serialized as ordinary Markdown by the handler.
+ */
+interface ContainerMdastNode {
+  type: "mdxContainerBlock";
+  openTag: string;
+  closeTag: string;
+  /** Verbatim inter-child separators; `gaps[i]` joins child i to child i+1. */
+  gaps: string[];
+  children: unknown[];
+}
+
+/**
  * Serializer options tuned for round-trip identity against the Portfolio
  * `.mdx` corpus. Each choice matches an observed convention in the source:
  *
@@ -52,7 +66,18 @@ interface VerbatimMdastNode {
  * (strikethrough). `mdxToMarkdown` is intentionally *not* included: every MDX
  * JSX / expression / ESM node is captured as a verbatim atom and re-emitted
  * via the `handlers` below, so the JSX serializer is never invoked and can
- * never reflow content. The `handlers` simply return the stored source.
+ * never reflow content.
+ *
+ * Three custom handlers:
+ *  - `mdxVerbatimBlock` / `mdxVerbatimInline` — return the stored source
+ *    unchanged (verbatim atoms — Phase 2).
+ *  - `mdxContainerBlock` — Phase 3 editable containers. The handler serializes
+ *    each *real* child individually (so an edited child round-trips as ordinary
+ *    Markdown) and re-joins them: open tag, child, verbatim gap, child, …,
+ *    close tag. The open/close tags and the per-boundary gaps are all sliced
+ *    verbatim from the original source, so an unedited container reassembles
+ *    byte-for-byte. A boundary with no stored gap (a child added by an edit)
+ *    falls back to a canonical blank-line separator.
  */
 export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
   bullet: "-",
@@ -66,14 +91,56 @@ export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
   resourceLink: false,
   tightDefinitions: true,
   extensions: [gfmToMarkdown()],
-  // `Handlers` is keyed by the known mdast node types; the verbatim node types
-  // are custom, so the record is built untyped and cast. Each handler simply
-  // returns the stored verbatim source — no escaping, no reflow.
+  // `Handlers` is keyed by the known mdast node types; the custom node types
+  // are not, so the record is built untyped and cast. The verbatim handlers
+  // return the stored source unchanged; the container handler serializes its
+  // children and wraps them in the verbatim open/close tags.
   handlers: {
     mdxVerbatimBlock: (node: unknown): string =>
       (node as VerbatimMdastNode).value,
     mdxVerbatimInline: (node: unknown): string =>
       (node as VerbatimMdastNode).value,
+    mdxContainerBlock: (
+      node: unknown,
+      _parent: unknown,
+      state: {
+        handle: (
+          child: unknown,
+          parent: unknown,
+          state: unknown,
+          info: unknown,
+        ) => string;
+        bulletLastUsed?: string | undefined;
+      },
+      info: unknown,
+    ): string => {
+      const container = node as ContainerMdastNode;
+      const children = container.children;
+      // Each child is a real mdast node — serialize it as ordinary Markdown.
+      // Use a fresh block-context `info` (`before`/`after` = newline) per
+      // child, exactly as `mdast-util-to-markdown`'s own block serializer
+      // does. Threading the outer inline `info` instead would corrupt the
+      // escape context — e.g. a leading `~` would be escaped as `\~`.
+      const blockInfo = { ...(info as object), before: "\n", after: "\n" };
+      const parts = children.map((child) => {
+        // Reset the bullet-alternation memo before each child. Serializing
+        // children one at a time shares `state`, so two ordered lists split
+        // by a code block would otherwise see each other as adjacent and
+        // alternate the marker (`3.` -> `3)`). Each container child is its
+        // own block context.
+        state.bulletLastUsed = undefined;
+        return state.handle(child, container, state, blockInfo);
+      });
+      // Re-join: openTag + child0 + gap0 + child1 + … + closeTag. Gaps are the
+      // verbatim source separators; a missing one (a child added by an edit)
+      // falls back to a blank-line separator so the output stays well-formed.
+      let inner = parts[0] ?? "";
+      for (let i = 1; i < parts.length; i++) {
+        const gap = container.gaps[i - 1];
+        inner += (gap != null ? gap : "\n\n") + parts[i];
+      }
+      return container.openTag + inner + container.closeTag;
+    },
   } as unknown as Partial<Handlers>,
 };
 
