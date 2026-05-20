@@ -29,11 +29,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/goodsventures/tiptap-mdx.git"
+    "url": "git+https://github.com/brentvanw/tiptap-mdx.git"
   },
-  "homepage": "https://github.com/goodsventures/tiptap-mdx#readme",
+  "homepage": "https://github.com/brentvanw/tiptap-mdx#readme",
   "bugs": {
-    "url": "https://github.com/goodsventures/tiptap-mdx/issues"
+    "url": "https://github.com/brentvanw/tiptap-mdx/issues"
   },
   "keywords": [
     "mdx",
