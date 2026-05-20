@@ -49,6 +49,18 @@ interface ContainerMdastNode {
 }
 
 /**
+ * Custom mdast node for an editable *inline* container component (Phase 4).
+ * The open/close tags are carried verbatim; the children are real phrasing
+ * nodes the handler serializes as ordinary inline Markdown.
+ */
+interface ContainerInlineMdastNode {
+  type: "mdxContainerInline";
+  openTag: string;
+  closeTag: string;
+  children: unknown[];
+}
+
+/**
  * Serializer options tuned for round-trip identity against the Portfolio
  * `.mdx` corpus. Each choice matches an observed convention in the source:
  *
@@ -140,6 +152,26 @@ export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
         inner += (gap != null ? gap : "\n\n") + parts[i];
       }
       return container.openTag + inner + container.closeTag;
+    },
+    // Phase 4 editable inline containers. The children are real phrasing
+    // nodes; `containerPhrasing` serializes them as ordinary inline Markdown.
+    // `before`/`after` frame the escape context — the content sits between the
+    // `>` ending the open tag and the `<` starting the close tag.
+    mdxContainerInline: (
+      node: unknown,
+      _parent: unknown,
+      state: {
+        containerPhrasing: (parent: unknown, info: unknown) => string;
+      },
+      info: unknown,
+    ): string => {
+      const inline = node as ContainerInlineMdastNode;
+      const inner = state.containerPhrasing(inline, {
+        ...(info as object),
+        before: ">",
+        after: "<",
+      });
+      return inline.openTag + inner + inline.closeTag;
     },
   } as unknown as Partial<Handlers>,
 };

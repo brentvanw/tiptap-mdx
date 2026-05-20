@@ -18,7 +18,7 @@ Both fail for the same reason: the content is **MDX** — Markdown *plus* JSX co
 
 > Parsing a document and immediately re-serializing it produces **byte-identical** output.
 
-This is the property both prior tools failed. It is enforced by an automated test suite — 146 tests, including every `.mdx` file in a real-world validation corpus.
+This is the property both prior tools failed. It is enforced by an automated test suite — 158 tests, including every `.mdx` file in a real-world validation corpus.
 
 ```ts
 import { roundTrip } from "tiptap-mdx";

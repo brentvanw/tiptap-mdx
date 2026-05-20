@@ -5,6 +5,7 @@ import Link from "@tiptap/extension-link";
 import type { Schema } from "@tiptap/pm/model";
 import { MdxBlockAtom, MdxInlineAtom } from "./verbatim.js";
 import { MdxContainer } from "./container.js";
+import { MdxInlineMark } from "./inline-mark.js";
 
 /**
  * The ProseMirror schema for tiptap-mdx.
@@ -30,6 +31,10 @@ import { MdxContainer } from "./container.js";
  * Phase 3 adds the editable container node (see container.ts): a registered
  * container component becomes a styled wrapper with real, editable block
  * children, while its open/close tags are preserved verbatim.
+ *
+ * Phase 4 adds the editable inline container mark (see inline-mark.ts): a
+ * registered container written as an inline JSX element becomes an editable
+ * mark over its text, with the open/close tags preserved verbatim.
  */
 export const schema: Schema = getSchema([
   StarterKit.configure({
@@ -55,6 +60,8 @@ export const schema: Schema = getSchema([
   MdxInlineAtom,
   // Phase 3 editable container node (see container.ts).
   MdxContainer,
+  // Phase 4 editable inline container mark (see inline-mark.ts).
+  MdxInlineMark,
 ]);
 
 // Sanity: surface a clear error early if an expected node/mark is missing,
@@ -76,7 +83,7 @@ const REQUIRED_NODES = [
   "mdxInlineAtom",
   "mdxContainer",
 ];
-const REQUIRED_MARKS = ["bold", "italic", "strike", "code", "link"];
+const REQUIRED_MARKS = ["bold", "italic", "strike", "code", "link", "mdxInline"];
 
 for (const name of REQUIRED_NODES) {
   if (!schema.nodes[name]) {

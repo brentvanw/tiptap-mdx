@@ -17,6 +17,7 @@ import {
   extractAttributes,
   splitContainerTags,
   type MdxJsxFlowElementLike,
+  type MdxJsxElementLike,
 } from "./container.js";
 import { proseMirrorToMdast } from "./pm-to-mdast.js";
 import { serializeMdast } from "./markdown.js";
@@ -156,6 +157,66 @@ function serializeContainerStandalone(container: PMNode): string {
 }
 
 /**
+ * Promote a registered inline JSX container (`mdxJsxTextElement`, e.g.
+ * `<Emphasis>…</Emphasis>` on one line) to editable text wrapped in the
+ * `mdxInline` mark. The open/close tags are sliced verbatim; the children
+ * become real, editable inline content.
+ *
+ * Returns `null` — so the caller keeps the verbatim atom — when the element
+ * cannot be split, has no source offset, or would not round-trip byte-equal
+ * unedited. This is the inline twin of `containerNode`.
+ */
+function inlineContainerMark(
+  node: MdxJsxElementLike,
+  marks: readonly Mark[],
+  ctx: ConvertContext,
+): PMNode[] | null {
+  const tags = splitContainerTags(node, ctx.source);
+  if (tags == null) return null;
+  const startOffset = node.position?.start.offset;
+  if (typeof startOffset !== "number") return null;
+  const expected = sliceSource(node, ctx.source);
+  if (expected == null) return null;
+
+  // `key` is the source start offset — a per-element disambiguator so two
+  // adjacent identical inline containers do not coalesce. See inline-mark.ts.
+  const mark = schema.marks.mdxInline!.create({
+    componentName: node.name ?? "",
+    openTag: tags.openTag,
+    closeTag: tags.closeTag,
+    key: startOffset,
+  });
+  const children = node.children as PhrasingContent[];
+
+  // Round-trip guard — the inline twin of `containerNode`'s. The element,
+  // carrying only its own mark, must serialize back to its exact source span;
+  // otherwise the inner Markdown was non-canonical and the verbatim atom must
+  // take over so the identity invariant holds. Enclosing marks are excluded
+  // from the guard so the comparison is against the element's own span.
+  const guardRun = convertPhrasing(children, [mark], ctx);
+  if (guardRun.length === 0) return null;
+  if (serializeInlineMarkStandalone(guardRun) !== expected) return null;
+
+  // Promote. Re-attach any enclosing marks for the real document run.
+  return marks.length === 0
+    ? guardRun
+    : convertPhrasing(children, [...marks, mark], ctx);
+}
+
+/**
+ * Serialize an inline run (text carrying the `mdxInline` mark) to MDX in
+ * isolation — the inline twin of `serializeContainerStandalone`. The run is
+ * wrapped in a throwaway paragraph + document; `serializeMdast` adds the one
+ * trailing newline every block document ends with, stripped here so the
+ * result lines up with the element's raw source span.
+ */
+function serializeInlineMarkStandalone(inner: PMNode[]): string {
+  const para = schema.nodes.paragraph!.create(null, Fragment.from(inner));
+  const doc = schema.nodes.doc!.create(null, Fragment.from([para]));
+  return serializeMdast(proseMirrorToMdast(doc)).replace(/\n$/, "");
+}
+
+/**
  * Conversion context threaded through the recursive walk: the original source
  * (for verbatim slicing) and the component registry (for the container/atom
  * decision). Passing one object keeps every converter signature stable.
@@ -235,14 +296,21 @@ function convertInline(
     case "break":
       return [schema.nodes.hardBreak!.create()];
 
-    default:
-      // Inline JSX elements, inline expressions, and anything else inline:
-      // capture verbatim. Marks on a JSX atom are dropped — a JSX element
-      // is an opaque atom, not styled text — but in practice MDX inline
-      // elements never appear inside emphasis/strong runs. Inline JSX text
-      // elements are never promoted to containers — Phase 3 promotes only
-      // block-level flow elements; inline JSX stays a verbatim atom.
+    default: {
+      // A registered container written as an inline JSX element
+      // (`mdxJsxTextElement`) is promoted to an editable `mdxInline` mark over
+      // its text (Phase 4). Everything else inline — unregistered JSX, inline
+      // expressions — stays a verbatim atom, the universal safety net.
+      const el = node as unknown as MdxJsxElementLike;
+      if (
+        (el as { type: string }).type === "mdxJsxTextElement" &&
+        ctx.registry.isContainer(el.name)
+      ) {
+        const promoted = inlineContainerMark(el, marks, ctx);
+        if (promoted) return promoted;
+      }
       return [inlineAtom(node as MdastNode, ctx.source)];
+    }
   }
 }
 

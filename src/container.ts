@@ -57,6 +57,17 @@ export interface MdxJsxFlowElementLike extends MdastNode {
 }
 
 /**
+ * The minimal shape `splitContainerTags` needs — shared by block
+ * (`mdxJsxFlowElement`) and inline (`mdxJsxTextElement`) JSX elements. Tag
+ * splitting reads only `position` and `children`, so it is element-kind
+ * agnostic; the inline-container path (Phase 4) reuses it.
+ */
+export interface MdxJsxElementLike extends MdastNode {
+  name: string | null;
+  children: MdastNode[];
+}
+
+/**
  * A plain, serializable representation of one JSX attribute. The verbatim
  * open-tag slice is what gets re-emitted, so attribute fidelity never depends
  * on this — but consumers (a future side panel, validation) want structured
@@ -130,7 +141,7 @@ export interface ContainerTags {
  * — in which case the caller falls back to the Phase-2 verbatim atom.
  */
 export function splitContainerTags(
-  node: MdxJsxFlowElementLike,
+  node: MdxJsxElementLike,
   source: string,
 ): ContainerTags | null {
   const pos = node.position;

@@ -67,6 +67,19 @@ interface ContainerMdastNode {
 }
 
 /**
+ * Custom mdast node for an editable *inline* container component (Phase 4) —
+ * the inline twin of `ContainerMdastNode`. Carries the verbatim open/close
+ * tags plus real phrasing children; the serializer handler writes
+ * `openTag + serialized-children + closeTag`.
+ */
+interface ContainerInlineNode {
+  type: "mdxContainerInline";
+  openTag: string;
+  closeTag: string;
+  children: PhrasingContent[];
+}
+
+/**
  * ProseMirror represents inline marks as a *set per text node*; mdast nests
  * marks as a tree (`emphasis > strong > text`). This rebuilds the nesting.
  *
@@ -76,7 +89,11 @@ interface ContainerMdastNode {
  * contiguous run of leaves starting there. Ties (two marks covering the same
  * run) are broken by `MARK_TIE_ORDER` purely so output is deterministic.
  */
-const MARK_TIE_ORDER = ["link", "bold", "italic", "strike"] as const;
+// `mdxInline` (a JSX wrapper) is listed first so that, on a tie, it nests
+// outside the Markdown marks — `<Emphasis>**x**</Emphasis>` rather than
+// `**<Emphasis>x</Emphasis>**`. Either nesting is round-trip-guarded at parse
+// time, so this only decides which ambiguous form promotes vs. stays an atom.
+const MARK_TIE_ORDER = ["mdxInline", "link", "bold", "italic", "strike"] as const;
 
 function tieRank(name: string): number {
   const i = MARK_TIE_ORDER.indexOf(name as (typeof MARK_TIE_ORDER)[number]);
@@ -198,6 +215,17 @@ function wrapMark(mark: Mark, children: PhrasingContent[]): PhrasingContent {
       const title =
         mark.attrs.title != null ? String(mark.attrs.title) : null;
       return { type: "link", url: href, title, children };
+    }
+    case "mdxInline": {
+      // Editable inline container (Phase 4): re-emit the verbatim open/close
+      // tags around the real, serialized children.
+      const inline: ContainerInlineNode = {
+        type: "mdxContainerInline",
+        openTag: String(mark.attrs.openTag ?? ""),
+        closeTag: String(mark.attrs.closeTag ?? ""),
+        children,
+      };
+      return inline as unknown as PhrasingContent;
     }
     default:
       throw new Error(`tiptap-mdx: unexpected mark "${mark.type.name}"`);
