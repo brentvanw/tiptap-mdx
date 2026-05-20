@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { roundTrip } from "../src/index.js";
+import { roundTrip, portfolioRegistry } from "../src/index.js";
 import { stripFrontmatter } from "./strip.js";
 
 /**
@@ -58,6 +58,26 @@ describe.skipIf(fixtures.length === 0)(
         // M2: the full body — standard Markdown AND every JSX construct —
         // must round-trip byte-equal through the pipeline.
         expect(roundTrip(body)).toBe(body);
+      });
+    }
+  },
+);
+
+/**
+ * Phase 3 — the same corpus, this time with the Portfolio component registry
+ * supplied. Registered container components are promoted to editable nodes;
+ * registered atoms and unknown JSX still take the verbatim path. The
+ * round-trip of an *unedited* file must remain byte-equal — promoting
+ * containers must not regress M1 or M2.
+ */
+describe.skipIf(fixtures.length === 0)(
+  "Phase 3 — Portfolio .mdx round-trip with the component registry",
+  () => {
+    for (const fixture of fixtures) {
+      it(fixture.label, () => {
+        const raw = readFileSync(fixture.path, "utf8");
+        const body = stripFrontmatter(raw);
+        expect(roundTrip(body, portfolioRegistry)).toBe(body);
       });
     }
   },
