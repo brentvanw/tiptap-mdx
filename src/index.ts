@@ -5,7 +5,7 @@ import { mdastToProseMirror } from "./mdast-to-pm.js";
 import { proseMirrorToMdast } from "./pm-to-mdast.js";
 import { ComponentRegistry } from "./registry.js";
 
-export const VERSION = "0.0.0";
+export const VERSION = "0.1.0";
 
 /**
  * tiptap-mdx — a lossless MDX <-> Tiptap (ProseMirror) bridge.

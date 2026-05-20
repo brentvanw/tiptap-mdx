@@ -1,14 +1,13 @@
+// Base TypeScript config. The npm `dist/` build is produced by tsup
+// (see tsup.config.ts); this file's compiler options drive `npm run typecheck`
+// and are read by tsup for its own type-check + .d.ts generation.
 {
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

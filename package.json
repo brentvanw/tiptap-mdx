@@ -1,8 +1,9 @@
 {
   "name": "tiptap-mdx",
-  "version": "0.0.0",
-  "description": "Lossless MDX <-> Tiptap (ProseMirror) bridge with a round-trip-identity invariant.",
+  "version": "0.1.0",
+  "description": "A lossless MDX <-> Tiptap (ProseMirror) bridge with a round-trip-identity invariant: parse a document and re-serialize it byte-for-byte.",
   "license": "MIT",
+  "author": "Goods",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -13,28 +14,37 @@
       "import": "./dist/index.js"
     }
   },
+  "sideEffects": false,
   "files": [
     "dist",
-    "src",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodsventures/tiptap-mdx.git"
+  },
+  "homepage": "https://github.com/goodsventures/tiptap-mdx#readme",
+  "bugs": {
+    "url": "https://github.com/goodsventures/tiptap-mdx/issues"
   },
   "keywords": [
     "mdx",
-    "markdown",
     "tiptap",
     "prosemirror",
-    "remark",
+    "markdown",
     "editor",
-    "round-trip"
+    "remark",
+    "round-trip",
+    "wysiwyg"
   ],
-  "author": "Goods",
   "engines": {
     "node": ">=18"
   },
@@ -56,6 +66,7 @@
   "devDependencies": {
     "@types/mdast": "^4.0.4",
     "@types/node": "^22.13.5",
+    "tsup": "^8.5.1",
     "typescript": "^5.7.3",
     "vitest": "^3.0.7"
   }
