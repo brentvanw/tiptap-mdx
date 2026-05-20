@@ -32,6 +32,15 @@ const FIXTURES: Record<string, string[]> = {
     "All four: **bold**, *italic*, ~~strike~~, `code`.\n",
   ],
 
+  // A lone `~` (as in "~18%") must survive verbatim — only a doubled `~~`
+  // opens strikethrough, so it never needs escaping to `\~`.
+  "bare tilde": [
+    "Returns dropped by ~18% in the pilot.\n",
+    "Roughly ~98% of automakers were covered.\n",
+    "Done in ~five minutes.\n",
+    "A range ~10–20 and a ~~struck~~ phrase in one line.\n",
+  ],
+
   "nested marks": [
     "A line with **bold *and italic* together**.\n",
     "A line with *italic **and bold** together*.\n",

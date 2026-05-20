@@ -7,7 +7,6 @@ import {
   type Options as ToMarkdownOptions,
   type Handlers,
 } from "mdast-util-to-markdown";
-import { gfmToMarkdown } from "mdast-util-gfm";
 import type { Root } from "mdast";
 
 /**
@@ -74,11 +73,13 @@ interface ContainerInlineMdastNode {
  *  - `resourceLink: false`— links serialize as `[text](url)`, not autolinks.
  *  - `tightDefinitions`   — no blank line between adjacent definitions.
  *
- * The `gfmToMarkdown` extension teaches the serializer the GFM nodes
- * (strikethrough). `mdxToMarkdown` is intentionally *not* included: every MDX
- * JSX / expression / ESM node is captured as a verbatim atom and re-emitted
- * via the `handlers` below, so the JSX serializer is never invoked and can
- * never reflow content.
+ * Strikethrough (`delete`) is handled by the hand-written `delete` handler
+ * below rather than by `gfmToMarkdown` — see that handler's comment for why
+ * (the GFM extension escapes every bare `~`, corrupting "~18%"-style prose).
+ * `mdxToMarkdown` is also intentionally *not* included: every MDX JSX /
+ * expression / ESM node is captured as a verbatim atom and re-emitted via the
+ * `handlers` below, so the JSX serializer is never invoked and can never
+ * reflow content.
  *
  * Three custom handlers:
  *  - `mdxVerbatimBlock` / `mdxVerbatimInline` — return the stored source
@@ -102,7 +103,6 @@ export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
   listItemIndent: "one",
   resourceLink: false,
   tightDefinitions: true,
-  extensions: [gfmToMarkdown()],
   // `Handlers` is keyed by the known mdast node types; the custom node types
   // are not, so the record is built untyped and cast. The verbatim handlers
   // return the stored source unchanged; the container handler serializes its
@@ -172,6 +172,30 @@ export const SERIALIZE_OPTIONS: ToMarkdownOptions = {
         after: "<",
       });
       return inline.openTag + inner + inline.closeTag;
+    },
+    // Strikethrough (`delete`) — emitted as `~~…~~`. Hand-written rather than
+    // pulled in via `gfmToMarkdown`, whose strikethrough extension registers
+    // an `unsafe` rule that escapes EVERY bare `~` to `\~`. A lone `~` is in
+    // fact safe — only a doubled `~~` opens strikethrough — and the corpus
+    // uses it for approximations ("~18%", "~98%"). The over-cautious escape
+    // would change those bytes, which in turn demotes whole `<Section>`s to
+    // verbatim atoms (the round-trip guard refuses a promotion that is not
+    // byte-exact). Emitting `~~` directly here, with no `~` unsafe rule, keeps
+    // real strikethrough working while leaving lone tildes untouched.
+    delete: (
+      node: unknown,
+      _parent: unknown,
+      state: {
+        containerPhrasing: (parent: unknown, info: unknown) => string;
+      },
+      info: unknown,
+    ): string => {
+      const inner = state.containerPhrasing(node, {
+        ...(info as object),
+        before: "~",
+        after: "~",
+      });
+      return "~~" + inner + "~~";
     },
   } as unknown as Partial<Handlers>,
 };

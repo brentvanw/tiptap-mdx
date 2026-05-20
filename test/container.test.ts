@@ -341,4 +341,15 @@ describe("Phase 3 — container attributes", () => {
       '<Section label="Context">\n\nNew text.\n\n</Section>\n',
     );
   });
+
+  it("a section containing a bare tilde still promotes to a container", () => {
+    // "~18%" used to demote the whole <Section> to a verbatim atom: the
+    // serializer escaped the `~` to `\~`, so the byte-exact round-trip guard
+    // refused the promotion. A lone `~` is now left untouched.
+    const src =
+      "<Section>\n\n## Results\n\nReturns dropped by ~18% in the pilot.\n\n</Section>\n";
+    const doc = mdxToDoc(src, REGISTRY);
+    expect(doc.firstChild!.type.name).toBe("mdxContainer");
+    expect(roundTrip(src, REGISTRY)).toBe(src);
+  });
 });

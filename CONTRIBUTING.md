@@ -18,7 +18,7 @@ Requires Node 18 or newer.
 
 | Command | What it does |
 |---------|--------------|
-| `npm test` | Run the full test suite once (158 tests). |
+| `npm test` | Run the full test suite once (163 tests). |
 | `npm run test:watch` | Run the suite in watch mode while developing. |
 | `npm run typecheck` | Type-check `src/` **and** `test/` with `tsc` (no emit). |
 | `npm run build` | Build `dist/` — ESM + `.d.ts` — with tsup. |
