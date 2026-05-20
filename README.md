@@ -35,6 +35,20 @@ Early development.
 
 In Phase 1, JSX nodes (`mdxJsxFlowElement`, `mdxJsxTextElement`, expressions) are carried through unchanged as a passthrough so the pipeline does not crash on real files. Proper JSX modeling lands in Phase 2.
 
+## M1 — round-trip identity is achievable
+
+`roundTrip` is the identity function on **canonical** Markdown — Markdown already in the single spelling the serializer emits. The serializer is tuned (`SERIALIZE_OPTIONS` in `src/markdown.ts`) so the canonical form matches real-world content conventions:
+
+| Construct | Canonical form |
+|-----------|----------------|
+| Unordered list bullet | `-` (not `*` / `+`) |
+| Thematic break | `---` (not `***` / `___`) |
+| Emphasis | `*italic*` (not `_italic_`) |
+| Strong | `**bold**` (not `__bold__`) |
+| Headings | ATX `#` (not setext underlines) |
+
+Non-canonical input is normalized once on the first pass, then stable forever after. With the serializer tuned as above, **every standard-Markdown file in the validation corpus was already canonical** — no one-time reformat was required. See `test/normalization.test.ts` for the exact, tested normalization rules.
+
 ## Architecture
 
 ```
