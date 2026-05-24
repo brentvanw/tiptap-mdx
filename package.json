@@ -1,6 +1,6 @@
 {
   "name": "tiptap-mdx",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A lossless MDX <-> Tiptap (ProseMirror) bridge with a round-trip-identity invariant: parse a document and re-serialize it byte-for-byte.",
   "license": "MIT",
   "author": "Goods",

@@ -75,14 +75,33 @@ describe("Phase 4 — promotion vs. verbatim-atom fallback", () => {
     expect(doc.firstChild!.firstChild!.type.name).toBe("mdxInlineAtom");
   });
 
-  it("non-canonical inner Markdown falls back to a verbatim atom", () => {
-    // `_italic_` is non-canonical (the serializer emits `*italic*`). The
-    // round-trip guard rejects the promotion; the verbatim atom keeps it
-    // byte-exact instead.
+  it("non-canonical inner Markdown promotes when the canonical form is stable", () => {
+    // `_italic_` is non-canonical — the serializer emits `*italic*`. The
+    // guard now accepts the difference whenever the canonical form is
+    // itself idempotent under re-promotion, so the inline container
+    // promotes and the file canonicalizes on the next save.
     const input = "<Emphasis>here is _italic_ text</Emphasis>\n";
-    expect(roundTrip(input, REG)).toBe(input);
+    const canonical = "<Emphasis>here is *italic* text</Emphasis>\n";
+    expect(roundTrip(input, REG)).toBe(canonical);
     const doc = mdxToDoc(input, REG);
-    expect(doc.firstChild!.firstChild!.type.name).toBe("mdxInlineAtom");
+    const para = doc.firstChild!;
+    // The Emphasis element is now a real inline mark over the text, not a
+    // verbatim atom. Sample any text node with the mdxInline mark carrying
+    // componentName "Emphasis" to prove the promotion landed.
+    let sawEmphasisMark = false;
+    para.forEach((child) => {
+      if (
+        child.type.name === "text" &&
+        child.marks.some(
+          (m) =>
+            m.type.name === "mdxInline" &&
+            String(m.attrs.componentName) === "Emphasis",
+        )
+      ) {
+        sawEmphasisMark = true;
+      }
+    });
+    expect(sawEmphasisMark).toBe(true);
   });
 });
 

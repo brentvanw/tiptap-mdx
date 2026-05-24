@@ -20,7 +20,7 @@ import {
   type MdxJsxElementLike,
 } from "./container.js";
 import { proseMirrorToMdast } from "./pm-to-mdast.js";
-import { serializeMdast } from "./markdown.js";
+import { parseMdast, serializeMdast } from "./markdown.js";
 
 /**
  * mdast -> ProseMirror document.
@@ -133,15 +133,71 @@ function containerNode(
   );
 
   // Round-trip guard: the container, serialized unchanged, must reproduce its
-  // exact source span. If Markdown canonicalization would alter a byte, do not
-  // promote — keep the verbatim atom. (Edits are still serialized faithfully;
-  // this guard only protects the *unedited* identity invariant.)
+  // exact source span — or differ only in canonicalization the pipeline is
+  // *idempotent* about. If the difference were preserved bytes, the editor
+  // would silently rewrite the file on save; instead we accept a *one-time*
+  // canonicalization on save (e.g. micromark escaping a line-leading "[" to
+  // "\[") so long as the canonical form is itself stable.
   const expected = sliceSource(node, ctx.source);
   if (expected == null) return null;
   const actual = serializeContainerStandalone(container);
-  if (actual !== expected) return null;
+  if (actual !== expected && !isStableCanonicalContainer(actual, ctx.registry)) {
+    return null;
+  }
 
   return container;
+}
+
+/**
+ * Decide whether `src` is its own canonical form for the container promotion
+ * pipeline: re-parsing it and re-serializing through the same container path
+ * must yield `src` byte-for-byte. Used by `containerNode` so a JSX flow
+ * element whose source body contains a construct mdast-util-to-markdown
+ * defensively escapes (line-leading "[", etc.) can still be promoted — the
+ * file canonicalizes on next save and is byte-stable thereafter. Idempotency
+ * is what bounds the recursion: the call is only ever issued on the *already
+ * canonical* serialization, where the inner check matches strictly.
+ */
+function isStableCanonicalContainer(
+  src: string,
+  registry: ComponentRegistry,
+): boolean {
+  try {
+    const tree = parseMdast(src);
+    const first = (tree.children ?? [])[0];
+    if (!first || first.type !== "mdxJsxFlowElement") return false;
+    const subCtx: ConvertContext = { source: src, registry };
+    const sub = containerNode(first as MdxJsxFlowElementLike, subCtx);
+    if (!sub) return false;
+    return serializeContainerStandalone(sub) === src;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The inline twin of `isStableCanonicalContainer`. `src` is a single inline
+ * JSX element with no surrounding context (`serializeInlineMarkStandalone`'s
+ * output shape). Wrapping in a paragraph for parsing matches that shape.
+ */
+function isStableCanonicalInline(
+  src: string,
+  registry: ComponentRegistry,
+): boolean {
+  try {
+    const tree = parseMdast(src);
+    const firstBlock = (tree.children ?? [])[0];
+    if (!firstBlock || firstBlock.type !== "paragraph") return false;
+    const firstInline = (firstBlock as { children?: unknown[] }).children?.[0];
+    const el = firstInline as { type?: string } | undefined;
+    if (!el || el.type !== "mdxJsxTextElement") return false;
+    const subCtx: ConvertContext = { source: src, registry };
+    const sub = inlineContainerMark(el as MdxJsxElementLike, [], subCtx);
+    if (!sub || sub.length === 0) return false;
+    return serializeInlineMarkStandalone(sub) === src;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -190,12 +246,19 @@ function inlineContainerMark(
 
   // Round-trip guard — the inline twin of `containerNode`'s. The element,
   // carrying only its own mark, must serialize back to its exact source span;
-  // otherwise the inner Markdown was non-canonical and the verbatim atom must
-  // take over so the identity invariant holds. Enclosing marks are excluded
-  // from the guard so the comparison is against the element's own span.
+  // otherwise we accept the difference *only* when the canonical form is
+  // idempotent (the same one-time canonicalization story as the block path).
+  // Enclosing marks are excluded from the guard so the comparison is against
+  // the element's own span.
   const guardRun = convertPhrasing(children, [mark], ctx);
   if (guardRun.length === 0) return null;
-  if (serializeInlineMarkStandalone(guardRun) !== expected) return null;
+  const actualInline = serializeInlineMarkStandalone(guardRun);
+  if (
+    actualInline !== expected &&
+    !isStableCanonicalInline(actualInline, ctx.registry)
+  ) {
+    return null;
+  }
 
   // Promote. Re-attach any enclosing marks for the real document run.
   return marks.length === 0

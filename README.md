@@ -126,7 +126,7 @@ This is also the universal safety net: any JSX, recognized or not, becomes a ver
 
 A **container component** wraps Markdown children (`<Section>`, `<Outcomes>`, `<Emphasis>`, `<Punch>`, `<Aside>`, `<NowReading>`, …). Registered containers are promoted from opaque atoms to **editable nodes**: the wrapper renders as a styled block, and its children become real, editable Markdown in the canvas.
 
-The open and close tags — attributes and the blank-line padding the content uses — are still sliced **verbatim** from the source and re-emitted unchanged; only the children re-serialize. So an unedited container round-trips byte-for-byte, while an edited one re-serializes as well-formed MDX. If a container's Markdown children are non-canonical (so re-serializing them would change a byte), it gracefully stays a verbatim atom — the safety net is absolute.
+The open and close tags — attributes and the blank-line padding the content uses — are still sliced **verbatim** from the source and re-emitted unchanged; only the children re-serialize. So an unedited container round-trips byte-for-byte, while an edited one re-serializes as well-formed MDX. If a container's Markdown children are non-canonical (so re-serializing them would change a byte), the container still promotes whenever the canonical form is itself stable under a second round-trip — the file canonicalizes on the next save and is byte-stable thereafter. Genuinely unstable bodies fall back to a verbatim atom, so the safety net always holds.
 
 ### The component registry
 

@@ -352,4 +352,20 @@ describe("Phase 3 — container attributes", () => {
     expect(doc.firstChild!.type.name).toBe("mdxContainer");
     expect(roundTrip(src, REGISTRY)).toBe(src);
   });
+
+  it("a Note whose body begins with a bracket promotes and canonicalizes on save", () => {
+    // `[Brent — …]` used to demote the <Note> to a verbatim atom — the
+    // serializer escapes a line-leading `[` to `\[` (it could begin a link
+    // reference), and the byte-exact guard refused the canonicalized form.
+    // The promotion now succeeds whenever the canonical output is stable;
+    // the file canonicalizes (one backslash added) on the next save.
+    const REG = REGISTRY.register({ name: "Note", kind: "container" });
+    const src = "<Note>\n[Brent — replace this later.]\n</Note>\n";
+    const canonical = "<Note>\n\\[Brent — replace this later.]\n</Note>\n";
+    const doc = mdxToDoc(src, REG);
+    expect(doc.firstChild!.type.name).toBe("mdxContainer");
+    expect(roundTrip(src, REG)).toBe(canonical);
+    // And the canonical form is idempotent under a second round-trip.
+    expect(roundTrip(canonical, REG)).toBe(canonical);
+  });
 });
